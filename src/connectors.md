@@ -5,11 +5,12 @@ While I personally don't use external holders, they are a popular way to securel
 
 If you're using one of these, make sure to set the connector type to *anything* but RJ9.
 
-| Board                    | Model Downloads                                                       | Author                       |
-|--------------------------|-----------------------------------------------------------------------|------------------------------|
+| Board                 | Model Downloads                                                       | Author                       |
+|-----------------------|-----------------------------------------------------------------------|------------------------------|
 | Pro Micro (micro USB) | [[left (mesh fixed)][pm-leftf]] [[left][pm-left]] [[right][pm-right]] | [Blue Ye (@yejianfengblue )] |
 | Pro Micro (USB-C)     | [[left][pmc-left]] [[right][pmc-right]]                               | [Blue Ye (@yejianfengblue )] |
-| Elite-C                  | [[right][ec-right]]                                                   | Unknown                      |
+| Elite-C               | [[right][ec-right]]                                                   | Unknown                      |
+| Nice!Nano             | [[left/right][nn-both]]                                                     | [chewbaccat]                   |
 
 [pm-leftf]: https://github.com/yejianfengblue/dactyl-generator-demo/blob/main/stl/promicro-holder-v3-left-mesh-fixed.stl
 [pm-left]: https://github.com/yejianfengblue/dactyl-generator-demo/blob/main/stl/promicro-holder-v3-left.stl
@@ -18,8 +19,10 @@ If you're using one of these, make sure to set the connector type to *anything* 
 [pmc-right]: https://github.com/yejianfengblue/dactyl-generator-demo/blob/main/stl/promicro-holder-typec-untested-right.stl
 [Blue Ye (@yejianfengblue )]: https://github.com/yejianfengblue
 [ec-right]: https://web.archive.org/web/20220607031927/https://dactyl.siskam.link/loligagger-external-holder-elite-c-v1.stl
+[nn-both]: https://www.printables.com/model/1270983-dactyl-manuform-nicenano-v2-holder/files
+[chewbaccat]: https://www.printables.com/@chewbaccat_1551035
 
-If you're looking to use a wireless microcontroller like the nice!nano, you can use the USB-C Pro Micro holder. However the nice!nano will fit loosely since it has a mid-mount USB-C port whereas the Pro Micro holder is designed for a top-mount port. You'll also have no need for the TRRS jack as the two halves will be wirelessly connected.  There is an [external holder](https://github.com/nathanielks/nice-nano-holder) by [@nathanielks](https://github.com/nathanielks) meant for the nice!nano that houses a power switch and reset button, but it is 4mm taller than the other holders. This makes it incompatible with the generator's models.
+The other option for the nice!nano is the USB-C Pro Micro holder. However the nice!nano will fit loosely since it has a mid-mount USB-C port whereas the Pro Micro holder is designed for a top-mount port. You'll also have no need for the TRRS jack as the two halves will be wirelessly connected.  There is an [external holder](https://github.com/nathanielks/nice-nano-holder) by [@nathanielks](https://github.com/nathanielks) meant for the nice!nano that houses a power switch and reset button, but it is 4mm taller than the other holders. This makes it incompatible with the generator's models.
 
 ----
 

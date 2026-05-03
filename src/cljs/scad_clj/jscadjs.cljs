@@ -160,6 +160,12 @@
   ((g/get (g/get modeling "colors") "colorize")
    (array r g b a) (write-block modeling block)))
 
+(defmethod write-expr :import-stl [modeling [form url]]
+  ((g/get (g/get modeling "primitives") "importSTL") url))
+
+(defmethod write-expr :cherry-mx-stl [modeling [form]]
+  ((g/get (g/get modeling "primitives") "cherryMXSTL")))
+
 (defmethod write-expr :hull [modeling [form & block]]
   ((g/get (g/get modeling "hulls") "hull")
    (write-block modeling block)))

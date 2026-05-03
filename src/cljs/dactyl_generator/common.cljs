@@ -1,6 +1,6 @@
 (ns dactyl-generator.common
   (:refer-clojure :exclude [use import])
-  (:require [scad-clj.model :refer [translate cube hull rotate cylinder union mirror extrude-linear polygon sphere difference color sphere-fn cylinder-fn project *fn*]]
+  (:require [scad-clj.model :refer [translate cube hull rotate cylinder union mirror extrude-linear polygon sphere difference color sphere-fn cylinder-fn project cherry-mx-stl *fn*]]
             [dactyl-generator.util :refer [mmul bottom-hull-t]]))
 
 ; common parts between the two boards.
@@ -359,6 +359,42 @@
                                 (not use-alps?))
                          hotswap-holder
                          ())))))
+;;;;;;;;;;;;;;;;
+;; Switch Body ;;
+;;;;;;;;;;;;;;;;
+
+(defn switch-body
+  "Generates a switch body based on switch type.
+   For MX-type switches, uses the Cherry MX STL model.
+   For Choc/Alps, uses parametric geometry.
+   Positioned so the bottom sits flush with the top of the plate."
+  [c]
+  (let [switch-type (get c :configuration-switch-type)
+        pt          (plate-thickness c)]
+    (if (contains? #{:mx :box :mx-snap-in :kailh} switch-type)
+      ;; MX-family: use the Cherry MX STL (already centered at origin, bottom at z=0)
+      ;; Drop the switch down so the housing seats into the plate cutout
+      (->> (cherry-mx-stl)
+           (translate [0 0 (- pt 7.75)])
+           (color [0.4 0.4 0.45 1]))
+      ;; Choc / Alps: parametric
+      (let [choc-housing-w 13.8  choc-housing-d 13.8  choc-housing-h 5.5
+            choc-stem-r    1.2   choc-stem-h    2.0
+            alps-housing-w 15.6  alps-housing-d 13.0  alps-housing-h 12.0
+            alps-stem-r    1.5   alps-stem-h    2.5
+            [housing-w housing-d housing-h stem-r stem-h]
+            (case switch-type
+              :choc [choc-housing-w choc-housing-d choc-housing-h choc-stem-r choc-stem-h]
+              :alps [alps-housing-w alps-housing-d alps-housing-h alps-stem-r alps-stem-h]
+              [15.6 15.6 11.6 1.8 3.0])
+            housing (->> (cube housing-w housing-d housing-h)
+                         (translate [0 0 (+ (/ housing-h 2) pt)]))
+            stem    (->> (binding [*fn* 20] (cylinder stem-r stem-h))
+                         (translate [0 0 (+ housing-h pt (/ stem-h 2))]))
+            body    (union housing stem)]
+        (->> body
+             (color [0.4 0.4 0.45 1]))))))
+
 ;;;;;;;;;;;;;;;;
 ;; SA Keycaps ;;
 ;;;;;;;;;;;;;;;;

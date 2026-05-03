@@ -4,7 +4,7 @@
             [dactyl-generator.util :refer [deg2rad bottom triangle-hulls]]
             [dactyl-generator.common
              :as cmn :refer [screw-insert screw-insert-holes screw-insert-screw-holes screw-insert-outers
-                             single-plate sa-cap sa-double-length mount-width mount-height plate-thickness
+                             single-plate switch-body sa-cap sa-double-length mount-width mount-height plate-thickness
                              wall-locate1 wall-locate2 wall-locate3 key-position apply-key-geometry
                              web-post post-adj flastrow flastcol fmiddlerow fcenterrow fcornerrow bottom-hull]]))
 
@@ -168,6 +168,39 @@
                       1.5
                       1))
             (key-place c column row))))))
+
+(defn switches
+  "Places switch bodies at each key position."
+  [c]
+  (let [inner               (get c :configuration-inner-column)
+        ncols               (get c :configuration-ncols)
+        nrows               (get c :configuration-nrows)
+        hide-last-pinky?    (get c :configuration-hide-last-pinky?)
+        last-row-count      (get c :configuration-last-row-count)
+        lastrow             (flastrow nrows)
+        lastcol             (flastcol ncols)
+        cornerrow           (fcornerrow nrows)
+        last-pinky-location (fn [column row]
+                              (and (= row lastrow)
+                                   (= column lastcol)))
+        hide-pinky          (fn [column row]
+                              (not (and (= last-row-count :full)
+                                        hide-last-pinky?
+                                        (last-pinky-location column row))))]
+    (apply union
+           (for [column (columns inner ncols)
+                 row    (rows nrows)
+                 :when  (case last-row-count
+                          :zero (not= row lastrow)
+                          :two (or (contains? #{2 3} column)
+                                   (not= row lastrow))
+                          :full (or (not (contains? #{0 1} column)) (not= row lastrow)))
+                 :when  (hide-pinky column row)
+                 :when  (case inner
+                          :outie (not (and (= column -1)
+                                           (<= cornerrow row)))
+                          true)]
+             (key-place c column row (switch-body c))))))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;; web connectors ;;
@@ -509,6 +542,11 @@
   (union
    (thumb-1x-layout c ((sa-cap c) 1))
    (thumb-15x-layout c (rotate (/ pi 2) [0 0 1] ((sa-cap c) 1.5)))))
+
+(defn thumb-switches [c]
+  (union
+   (thumb-1x-layout c (switch-body c))
+   (thumb-15x-layout c (switch-body c))))
 
 (defn thumb [c]
   (union
@@ -1657,6 +1695,7 @@
 
 (defn model-right [c]
   (let [show-caps?             (get c :configuration-show-caps?)
+        show-switches?         (get c :configuration-show-switches?)
         use-external-holder?   (get c :configuration-use-external-holder?)
         use-promicro-usb-hole? (get c :configuration-use-promicro-usb-hole?)
         use-screw-inserts?     (get c :configuration-use-screw-inserts?)
@@ -1678,6 +1717,8 @@
      (union
       (if show-caps? (caps c) ())
       (if show-caps? (thumbcaps c) ())
+      (if show-switches? (switches c) ())
+      (if show-switches? (thumb-switches c) ())
       (if use-wire-post? (wire-posts c) ())
       (key-holes c)
       (thumb c)
@@ -1782,4 +1823,5 @@
         :configuration-use-screw-inserts?       false
 
         :configuration-show-caps?               false
+        :configuration-show-switches?            false
         :configuration-plate-projection?        false})

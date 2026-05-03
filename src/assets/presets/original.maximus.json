@@ -37,7 +37,8 @@
             "rightSide": true,
             "plate": false,
             "screwInserts": false,
-            "useCase": false
+            "useCase": false,
+            "switches": false
         }
     }
 }

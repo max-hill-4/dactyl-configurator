@@ -4,7 +4,7 @@
             [dactyl-generator.util :refer [bottom triangle-hulls deg2rad]]
             [dactyl-generator.common
              :as cmn :refer [screw-insert screw-insert-holes screw-insert-screw-holes screw-insert-outers
-                             single-plate sa-cap sa-length sa-double-length mount-width mount-height plate-thickness
+                             single-plate switch-body sa-cap sa-length sa-double-length mount-width mount-height plate-thickness
                              wall-locate1 wall-locate2 wall-locate3 key-position apply-key-geometry
                              web-post post-adj flastrow flastcol fmiddlerow fcenterrow  fcornerrow
                              sa-profile-key-height bottom-hull
@@ -165,6 +165,31 @@
                  :when  (hide-pinky column row)]
              (->> ((sa-cap c) (sa-cap-unit column row))
                   (key-place c column row))))))
+
+(defn switches
+  "Places switch bodies at each key position."
+  [c]
+  (let [ncols               (get c :configuration-ncols)
+        use-lastrow?        (get c :configuration-use-lastrow?)
+        use-wide-pinky?     (get c :configuration-use-wide-pinky?)
+        hide-last-pinky?    (get c :configuration-hide-last-pinky?)
+        columns             (range 0 ncols)
+        rows                (frows c)
+        last-pinky-location (fn [column row]
+                              (and (= row 4)
+                                   (> (last columns) 4)
+                                   (= column (last columns))))
+        hide-pinky          (fn [column row]
+                              (not (and use-lastrow?
+                                        hide-last-pinky?
+                                        (last-pinky-location column row))))]
+    (apply union
+           (for [column columns
+                 row    rows
+                 :when  (or (not= column 0)
+                            (not= row 4))
+                 :when  (hide-pinky column row)]
+             (key-place c column row (switch-body c))))))
 
 ;;;;;;;;;;;;;;;;;;;;
 ;; Web Connectors ;;
@@ -349,6 +374,30 @@
               (thumb-place c 2  1 ((sa-cap c) 1))
               (thumb-place c 2  0 ((sa-cap c) 1))
               (thumb-place c 2 -1 ((sa-cap c) 1)))))))
+
+(defn thumb-switches [c]
+  (let [thumb-count (get c :configuration-thumb-count)]
+    (union
+     (case thumb-count
+       :eight (union (thumb-place c 0 -1 (switch-body c))
+                     (thumb-place c 0  0 (switch-body c))
+                     (thumb-place c 1 -1 (switch-body c))
+                     (thumb-place c 1  0 (switch-body c)))
+       :five-lightcycle (union (thumb-2x-column c (switch-body c))
+                               (thumb-place c 1 (/ -5 8) (switch-body c)))
+       (union (thumb-2x-column c (switch-body c))
+              (thumb-place c 1 -0.5 (switch-body c))))
+     (case thumb-count
+       :two ()
+       :three (thumb-place c 1 1 (switch-body c))
+       :five (union (thumb-1x-column c (switch-body c))
+                    (thumb-place c 1 1 (switch-body c)))
+       :five-lightcycle (union (thumb-1x-column c (switch-body c))
+                               (thumb-place c 1 (/ 7 8) (switch-body c)))
+       (union (thumb-place c 1  1 (switch-body c))
+              (thumb-place c 2  1 (switch-body c))
+              (thumb-place c 2  0 (switch-body c))
+              (thumb-place c 2 -1 (switch-body c)))))))
 
 (defn thumb-connectors [c]
   (let [thumb-count  (get c :configuration-thumb-count)
@@ -1166,6 +1215,8 @@
                         (if use-screw-inserts? (screw-insert-holes screw-placement c) ()))
             (if (get c :configuration-show-caps?) (caps c) ())
             (if (get c :configuration-show-caps?) (thumbcaps c) ())
+            (if (get c :configuration-show-switches?) (switches c) ())
+            (if (get c :configuration-show-switches?) (thumb-switches c) ())
             (if-not use-external-holder? (cmn/rj9-holder frj9-start c) ()))
      (translate [0 0 -60] (cube 350 350 120)))))
 
@@ -1210,7 +1261,8 @@
         :configuration-thick-wall?          true
 
         :configuration-use-screw-inserts?   false
-        :configuration-show-caps?           false})
+        :configuration-show-caps?           false
+        :configuration-show-switches?        false})
 
 #_(spit "things/lightcycle-cherry-top-right.scad"
         (write-scad (dactyl-top-right c)))

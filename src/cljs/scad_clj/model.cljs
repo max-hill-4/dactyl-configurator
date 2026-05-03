@@ -53,6 +53,12 @@
 (defn import [file]
   `(:import ~file))
 
+(defn import-stl [url]
+  `(:import-stl ~url))
+
+(defn cherry-mx-stl []
+  `(:cherry-mx-stl))
+
 (defn include [library]
   `(:include {:library ~library}))
 

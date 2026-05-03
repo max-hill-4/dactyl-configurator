@@ -104,6 +104,7 @@
                         :configuration-wall-thickness              (get form "wallThickness" 3.0)
 
                         :configuration-show-caps?                  (get misc "keycaps" false)
+                        :configuration-show-switches?              (get misc "switches" false)
                         :configuration-plate-projection?           (not (get misc "case" true))
                         :configuration-is-right?                   (get misc "rightSide" true)
                         :configuration-is-plate?                   (get misc "plate" false)}
@@ -151,6 +152,7 @@
                         :configuration-is-right?            (get misc "rightSide" true)
                         :configuration-is-plate?            (get misc "plate" false)
                         :configuration-show-caps?           (get misc "keycaps" false)
+                        :configuration-show-switches?        (get misc "switches" false)
                         :configuration-use-case?            (get misc "useCase" true)}
         ]
     c))

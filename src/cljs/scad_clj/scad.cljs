@@ -66,6 +66,12 @@
 (defmethod write-expr :import [depth [form file]]
   (list (indent depth) "import (\"" file "\");\n"))
 
+(defmethod write-expr :import-stl [depth [form url]]
+  (list (indent depth) "import (\"" url "\");\n"))
+
+(defmethod write-expr :cherry-mx-stl [depth [form]]
+  (list (indent depth) "import (\"/cherry-mx.stl\");\n"))
+
 (defmethod write-expr :call [depth [form {:keys [function]} & args]]
   (list (indent depth) function "(" (make-arguments (apply vec args)) ");\n"))
 

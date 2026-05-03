@@ -2,7 +2,7 @@ import type { ManifoldStatic, Mesh } from "manifold-3d"
 import * as Dactyl from '../../target/dactyl.js'
 import Module from '../assets/manifold'
 import manifoldWasmUrl from '../assets/manifold.wasm?url'
-import { createModeling, serializeMesh, type Modeling } from './modeling'
+import { createModeling, serializeMesh, type Modeling, preloadSTL, ensureSTL, CHERRY_MX_STL } from './modeling'
 import createGC, { type GC } from './gc'
 import scadWasmUrl from '../assets/openscad.wasm?url'
 import stlExport from './STLExporter'
@@ -13,15 +13,19 @@ import svgExport from "./SVGExporter.js"
     locateFile: () => manifoldWasmUrl,
     print: console.log,
     printErr: console.error
-}).then(main).catch(e => console.error(e))
-
-const message = (type: string, data: any) => postMessage({ type, data })
-
-function main(manifold: ManifoldStatic) {
+}).then(async (manifold: ManifoldStatic) => {
     manifold.setup()
     manifold.setCircularSegments(100) // Make the circles look pretty and precise!
     const cleanup = createGC(manifold)
     const modeling = createModeling(manifold)
+
+    // Preload the Cherry MX STL in the background — don't block worker startup
+    preloadSTL(manifold, CHERRY_MX_STL).then(() => {
+        console.log('Cherry MX STL loaded')
+    }).catch((e: Error) => {
+        console.warn('Failed to load Cherry MX STL:', e.message)
+    })
+
     message("scriptsinit", null)
 
     onmessage = (event) => {
@@ -35,10 +39,13 @@ function main(manifold: ManifoldStatic) {
             case 'scadstl': return generateSCAD_STL(data)
         }
     }
-}
+}).catch(e => console.error(e))
 
-function generateCSG(config: any, modeling: Modeling, cleanup: GC) {
+const message = (type: string, data: any) => postMessage({ type, data })
+
+async function generateCSG(config: any, modeling: Modeling, cleanup: GC) {
     try {
+        await ensureSTL(CHERRY_MX_STL)
         const model = Dactyl.generateManifold(config, modeling)
         message('csg', serializeMesh(model))
         message('supports', supportManifold(model, modeling.manifold))
@@ -49,8 +56,9 @@ function generateCSG(config: any, modeling: Modeling, cleanup: GC) {
     }
 }
 
-function generateSTL(config: any, modeling: Modeling, cleanup: GC) {
+async function generateSTL(config: any, modeling: Modeling, cleanup: GC) {
     try {
+        await ensureSTL(CHERRY_MX_STL)
         const mesh: Mesh = Dactyl.generateManifold(config, modeling).getMesh()
         message('stl', stlExport(mesh, { binary: true }))
         cleanup()
@@ -60,8 +68,9 @@ function generateSTL(config: any, modeling: Modeling, cleanup: GC) {
     }
 }
 
-function generateSVG(config: any, modeling: Modeling, cleanup: GC) {
+async function generateSVG(config: any, modeling: Modeling, cleanup: GC) {
     try {
+        await ensureSTL(CHERRY_MX_STL)
         const mesh: Mesh = Dactyl.generateManifold(config, modeling).getMesh()
         message('svg', svgExport(mesh))
         cleanup()

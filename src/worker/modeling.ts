@@ -4,6 +4,122 @@ import { Matrix4 } from 'three/src/math/Matrix4'
 import { Vector3 } from 'three/src/math/Vector3'
 import { Vector2 } from 'three/src/math/Vector2'
 
+// Cache for imported STL meshes keyed by URL
+const stlCache = new Map<string, Manifold>()
+const stlReady = new Map<string, Promise<void>>()
+export const CHERRY_MX_STL = '/cherry-mx.stl'
+
+/** Parse a binary or ASCII STL ArrayBuffer into a Manifold mesh, then create a Manifold.
+ *  If the mesh is not manifold, attempts repair by merging coincident vertices.
+ */
+function parseSTL(manifold: ManifoldStatic, buffer: ArrayBuffer): Manifold {
+    const data = new DataView(buffer)
+    const header = new Uint8Array(buffer, 0, 80)
+    const headerText = String.fromCharCode(...header).trim()
+    const triangles = data.getUint32(80, true)
+
+    let triVerts: Uint32Array
+    let vertProperties: Float32Array
+
+    if (headerText.startsWith('solid') && triangles === 0) {
+        // ASCII STL fallback
+        const text = new TextDecoder().decode(buffer)
+        const vertexPattern = /vertex\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)/g
+        const verts: number[][] = []
+        let match: RegExpExecArray | null
+        while ((match = vertexPattern.exec(text)) !== null) {
+            verts.push([parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3])])
+        }
+        const numTris = Math.floor(verts.length / 3)
+        vertProperties = new Float32Array(verts.length * 3)
+        triVerts = new Uint32Array(numTris * 3)
+        for (let i = 0; i < verts.length; i++) {
+            vertProperties[i * 3] = verts[i][0]
+            vertProperties[i * 3 + 1] = verts[i][1]
+            vertProperties[i * 3 + 2] = verts[i][2]
+            triVerts[i] = i
+        }
+    } else {
+        // Binary STL
+        const numProp = 3
+        vertProperties = new Float32Array(triangles * 3 * numProp)
+        triVerts = new Uint32Array(triangles * 3)
+        for (let i = 0; i < triangles; i++) {
+            const offset = 84 + i * 50
+            for (let v = 0; v < 3; v++) {
+                const vOffset = offset + 12 + v * 12
+                const idx = i * 3 + v
+                vertProperties[idx * 3] = data.getFloat32(vOffset, true)
+                vertProperties[idx * 3 + 1] = data.getFloat32(vOffset + 4, true)
+                vertProperties[idx * 3 + 2] = data.getFloat32(vOffset + 8, true)
+                triVerts[idx] = idx
+            }
+        }
+    }
+
+    const mesh = new manifold.Mesh({ numProp: 3, vertProperties, triVerts })
+    try {
+        return new manifold.Manifold(mesh)
+    } catch {
+        // Mesh isn't manifold — merge coincident vertices and try again
+        const merged = mergeVertices(manifold, mesh)
+        return new manifold.Manifold(merged)
+    }
+}
+
+/** Merge vertices that are at the same position (within epsilon) to fix non-manifold meshes. */
+function mergeVertices(manifold: ManifoldStatic, mesh: Mesh): Mesh {
+    const eps = 1e-6
+    const vertCount = mesh.vertProperties.length / 3
+    const indexMap = new Int32Array(vertCount)
+    const newVerts: number[] = []
+    const vertMap = new Map<string, number>()
+
+    for (let i = 0; i < vertCount; i++) {
+        const x = mesh.vertProperties[i * 3]
+        const y = mesh.vertProperties[i * 3 + 1]
+        const z = mesh.vertProperties[i * 3 + 2]
+        const key = `${Math.round(x / eps)}_${Math.round(y / eps)}_${Math.round(z / eps)}`
+        const existing = vertMap.get(key)
+        if (existing !== undefined) {
+            indexMap[i] = existing
+        } else {
+            const newIndex = newVerts.length / 3
+            newVerts.push(x, y, z)
+            vertMap.set(key, newIndex)
+            indexMap[i] = newIndex
+        }
+    }
+
+    const newTriVerts = new Uint32Array(mesh.triVerts.length)
+    for (let i = 0; i < mesh.triVerts.length; i++) {
+        newTriVerts[i] = indexMap[mesh.triVerts[i]]
+    }
+
+    return new manifold.Mesh({
+        numProp: 3,
+        vertProperties: new Float32Array(newVerts),
+        triVerts: newTriVerts
+    })
+}
+
+/** Pre-fetch and parse an STL file so it's available synchronously later. */
+export function preloadSTL(manifoldStatic: ManifoldStatic, url: string): Promise<void> {
+    if (stlCache.has(url)) return Promise.resolve()
+    if (stlReady.has(url)) return stlReady.get(url)!
+    const p = fetch(url)
+        .then(r => r.arrayBuffer())
+        .then(buf => { stlCache.set(url, parseSTL(manifoldStatic, buf)) })
+    stlReady.set(url, p)
+    return p
+}
+
+/** Wait for a preloaded STL to be ready. No-op if already loaded or not needed. */
+export async function ensureSTL(url: string): Promise<void> {
+    if (stlCache.has(url)) return
+    if (stlReady.has(url)) await stlReady.get(url)
+}
+
 function d(m: Manifold|Manifold[]): Manifold {
     if (Array.isArray(m)) {
         if (m.length > 1) throw new Error('To many items to unpack')
@@ -201,6 +317,23 @@ export const createModeling = (manifold: ManifoldStatic) => ({
             // Assume the polygon is convex! The first three points will be a,b,c respectively.
             const p = [...opts.points]
             return ensureCCW(p)
+        },
+        importSTL(url: string) {
+            const cached = stlCache.get(url)
+            if (!cached) {
+                // STL not loaded yet — return a placeholder cube and warn
+                console.warn(`STL not preloaded: ${url}, using placeholder`)
+                return manifold.cube([1, 1, 1], true)
+            }
+            return cached
+        },
+        cherryMXSTL() {
+            const cached = stlCache.get(CHERRY_MX_STL)
+            if (!cached) {
+                console.warn('Cherry MX STL not preloaded, using placeholder')
+                return manifold.cube([15.6, 15.6, 11.6], true)
+            }
+            return cached
         }
     },
     transforms: {

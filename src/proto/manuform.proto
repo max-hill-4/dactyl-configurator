@@ -114,6 +114,7 @@ message Manuform {
     optional bool keycaps = 1 [(name) = "Show Keycaps"];
     optional bool right_side = 2 [(name) = "Right Side"];
     optional bool plate = 3 [(name) = "Generate Plate Instead"];
+    optional bool switches = 4 [(name) = "Show Switches"];
   }
   optional Keys keys = 1 [(name) = "Keys"];
   optional Curve curve = 2 [(name) = "Curve"];
